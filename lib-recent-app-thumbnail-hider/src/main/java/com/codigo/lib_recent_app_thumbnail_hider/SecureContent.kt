@@ -4,8 +4,6 @@ import android.app.Activity
 import android.util.Log
 import android.view.ViewTreeObserver
 import android.view.WindowManager
-import androidx.activity.ComponentActivity
-import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
@@ -24,20 +22,34 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 fun SecureContent(
     modifier: Modifier = Modifier,
     secureOverlay: @Composable () -> Unit = { DefaultSecureOverlay() },
-    content: @Composable () -> Unit
+    content: @Composable (onCloseClicked: () -> Unit) -> Unit
 ) {
     var isSecure by remember { mutableStateOf(false) }
+    var isClickBack by remember { mutableStateOf(false) }
+    var isClickClose by remember { mutableStateOf(false) }
 
     val context = LocalContext.current
     val activity = remember(context) { context.findActivity() }
     val rootView = remember(activity) { activity?.window?.decorView?.rootView }
-    
 
-    // Reference to whether window has focus
+    // Callback to trigger from close button
+    val onCloseClicked = {
+        isClickClose = true
+    }
+
+    CustomBackHandler {
+        isClickBack = true
+    }
+
     DisposableEffect(activity) {
         val listener = ViewTreeObserver.OnWindowFocusChangeListener { hasFocus ->
-            if (hasFocus) enableSecureFlag(activity) else clearSecureFlag(activity)
-            isSecure = !hasFocus
+            if (hasFocus) {
+                enableSecureFlag(activity)
+            } else {
+                clearSecureFlag(activity)
+            }
+
+            isSecure = if (isClickBack || isClickClose) false else !hasFocus
         }
 
         rootView?.viewTreeObserver?.addOnWindowFocusChangeListener(listener)
@@ -47,33 +59,20 @@ fun SecureContent(
         }
     }
 
-    // Lifecycle observer to manage secure flag
     val lifecycleOwner = LocalLifecycleOwner.current
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
             when (event) {
-                Lifecycle.Event.ON_START -> {
-                    // Log for debugging
-                    Log.e("testASDF", "TESTASDF ONSTART")
-                }
-
-                Lifecycle.Event.ON_STOP -> {
-                    // Log for debugging
-                    Log.e("testASDF", "TESTASDF ONSTOP")
-                }
-
                 Lifecycle.Event.ON_RESUME -> {
-                    // Log for debugging
-                    Log.e("testASDF", "TESTASDF ONRESUME")
+                    enableSecureFlag(activity)
                     isSecure = false
-                    enableSecureFlag(activity) // Re-enable secure flag when resuming
+                    isClickBack = false
+                    isClickClose = false
                 }
 
                 Lifecycle.Event.ON_PAUSE -> {
-                    // Log for debugging
-                    Log.e("testASDF", "TESTASDF ONPAUSE")
-                    clearSecureFlag(activity) // Remove the secure flag when pausing
-                    isSecure = true
+                    clearSecureFlag(activity)
+                    isSecure = !(isClickBack || isClickClose)
                 }
 
                 else -> {}
@@ -86,16 +85,15 @@ fun SecureContent(
         }
     }
 
-    Log.e("testASDF", "TESTASDF isSecure $isSecure")
-
     Box(modifier = modifier.fillMaxSize()) {
         if (isSecure) {
-            secureOverlay() // Show the secure overlay when needed
+            secureOverlay()
         } else {
-            content() // Show the actual content otherwise
+            content(onCloseClicked)
         }
     }
 }
+
 
 // Helper functions to manage FLAG_SECURE
 fun enableSecureFlag(activity: Activity?) {

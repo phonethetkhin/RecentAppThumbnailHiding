@@ -1,6 +1,5 @@
 package com.codigo.recent_app_thumbnail_hiding
 
-import androidx.activity.ComponentActivity
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -14,10 +13,10 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.codigo.lib_recent_app_thumbnail_hider.SecureContent
-import com.codigo.lib_recent_app_thumbnail_hider.findActivity
 
 @Composable
 fun MainScreen() {
+    val context = LocalContext.current
     SecureContent {
         Column(
             modifier = Modifier
